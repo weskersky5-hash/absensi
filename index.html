@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Absen: Sistem Presensi Kelas Modern</title>
+    <!-- Google Fonts & Tailwind CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased text-slate-800 bg-slate-50">
+
+    <!-- Custom Toast Notification Box -->
+    <div id="toast" class="fixed top-5 right-5 z-50 flex items-center w-full max-w-xs p-4 space-x-4 text-gray-500 bg-white rounded-xl shadow-2xl transition-all duration-300 transform translate-y-[-150%] opacity-0 border border-slate-100" role="alert">
+        <div id="toast-icon-bg" class="inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg">
+            <i id="toast-icon" class="fa-solid"></i>
+        </div>
+        <div id="toast-message" class="text-sm font-semibold text-slate-700">Pemberitahuan.</div>
+    </div>
+
+    <!-- Global Overlay Spinner -->
+    <div id="global-loader" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center max-w-xs text-center border border-slate-100">
+            <svg class="animate-spin h-10 w-10 text-indigo-600 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-sm font-medium text-slate-700" id="loader-text">Memproses permintaan...</p>
+        </div>
+    </div>
+
+    <main class="flex-grow flex flex-col justify-center">
+        
+        <!-- ================= AUTH SCREEN ================= -->
+        <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 sm:p-6 lg:p-8 bg-gradient-to-tr from-slate-100 via-indigo-50/20 to-slate-100">
+            <div class="w-full max-w-md space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
+                <div class="text-center">
+                    <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600 text-white mb-4 shadow-lg shadow-indigo-200">
+                        <i class="fa-solid fa-graduation-cap text-3xl"></i>
+                    </div>
+                    <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">E-Absen</h2>
+                    <p id="auth-subtitle" class="mt-2 text-sm text-slate-600">Silakan login untuk mengakses kelas Anda</p>
+                </div>
+
+                <!-- Toggle Tab Login / Register -->
+                <div class="flex p-1 bg-slate-100 rounded-xl">
+                    <button id="tab-login" onclick="toggleAuthMode('login')" class="w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition">Masuk</button>
+                    <button id="tab-register" onclick="toggleAuthMode('register')" class="w-1/2 py-2 text-sm font-medium rounded-lg text-slate-600 hover:text-slate-900 transition">Daftar</button>
+                </div>
+
+                <!-- Form Login / Register -->
+                <form id="auth-form" class="space-y-5" onsubmit="handleAuthSubmit(event)">
+                    <div id="reg-fields" class="space-y-4 hidden">
+                        <div>
+                            <label for="reg-name" class="block text-sm font-semibold text-slate-700">Nama Lengkap</label>
+                            <input id="reg-name" type="text" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="Nama lengkap Anda">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-slate-700 mb-2">Daftar Sebagai</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <label class="border border-slate-200 rounded-xl p-3 flex items-center justify-center cursor-pointer hover:bg-indigo-50/30 transition">
+                                    <input type="radio" name="reg-role" value="Guru" checked class="text-indigo-600 focus:ring-indigo-500 mr-2">
+                                    <span class="text-sm font-medium text-slate-700"><i class="fa-solid fa-chalkboard-user mr-1 text-indigo-600"></i> Guru</span>
+                                </label>
+                                <label class="border border-slate-200 rounded-xl p-3 flex items-center justify-center cursor-pointer hover:bg-indigo-50/30 transition">
+                                    <input type="radio" name="reg-role" value="Siswa" class="text-indigo-600 focus:ring-indigo-500 mr-2">
+                                    <span class="text-sm font-medium text-slate-700"><i class="fa-solid fa-user mr-1 text-emerald-600"></i> Siswa</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="auth-username" class="block text-sm font-semibold text-slate-700">Username</label>
+                        <input id="auth-username" required type="text" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="Masukkan username">
+                    </div>
+
+                    <div>
+                        <label for="auth-password" class="block text-sm font-semibold text-slate-700">Password</label>
+                        <input id="auth-password" required type="password" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="••••••••">
+                    </div>
+
+                    <button id="auth-btn" type="submit" class="w-full py-3 px-4 rounded-xl bg-indigo-600 text-white font-semibold shadow-lg hover:bg-indigo-700 transition duration-150 ease-in-out focus:ring-4 focus:ring-indigo-500/30">
+                        Masuk Ke Akun
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= MAIN APP SCREEN ================= -->
+        <div id="app-screen" class="min-h-screen flex flex-col hidden bg-slate-50">
+            <!-- Navigation Header -->
+            <nav class="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="flex justify-between h-16">
+                        <div class="flex items-center space-x-3">
+                            <div class="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-100">
+                                <i class="fa-solid fa-graduation-cap text-lg"></i>
+                            </div>
+                            <span class="text-xl font-bold tracking-tight text-slate-900">E-Absen</span>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <!-- User Identity Badge -->
+                            <div class="flex items-center space-x-3 bg-slate-50 py-1.5 px-3 rounded-xl border border-slate-100">
+                                <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold" id="user-avatar">
+                                    U
+                                </div>
+                                <div class="hidden sm:block text-left">
+                                    <div class="text-xs font-semibold text-slate-700 leading-tight" id="user-display-name">Guest</div>
+                                    <div class="text-[10px] text-indigo-600 font-medium" id="user-display-role">Siswa</div>
+                                </div>
+                            </div>
+                            <!-- Logout Button -->
+                            <button onclick="handleLogout()" class="p-2.5 rounded-xl border border-slate-100 bg-white text-slate-600 hover:text-red-600 hover:border-red-100 hover:bg-red-50/30 transition" title="Log Keluar">
+                                <i class="fa-solid fa-arrow-right-from-bracket text-md"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Dashboard Content Container -->
+            <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 flex-grow">
+                
+                <!-- GURU VIEW -->
+                <div id="guru-view" class="hidden space-y-8">
+                    <div class="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Ruang Kendali Guru</h1>
+                            <p class="mt-1 text-sm text-slate-500">Buat kelas baru, buka absensi, dan amati riwayat presensi siswa secara langsung.</p>
+                        </div>
+                        <div class="mt-4 sm:mt-0">
+                            <button onclick="openModal('create-class-modal')" class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold text-sm shadow-md shadow-indigo-200 hover:bg-indigo-700 hover:shadow-none transition">
+                                <i class="fa-solid fa-plus mr-2"></i> Buat Kelas Baru
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Classes Grid for Guru -->
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-chalkboard text-indigo-500 mr-2"></i> Daftar Kelas Anda</h2>
+                        <div id="guru-classes-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            <!-- Dynamically Loaded -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SISWA VIEW -->
+                <div id="siswa-view" class="hidden space-y-8">
+                    <div class="sm:flex sm:items-center sm:justify-between bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                        <div>
+                            <h1 class="text-2xl font-bold tracking-tight text-slate-900">Dashboard Siswa</h1>
+                            <p class="mt-1 text-sm text-slate-500">Pantau kehadiran kelas dan bergabunglah dalam sesi absensi yang aktif.</p>
+                        </div>
+                        <div class="mt-4 sm:mt-0 flex space-x-3">
+                            <button onclick="openModal('join-class-modal')" class="inline-flex items-center justify-center px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm shadow-md shadow-emerald-200 hover:bg-emerald-700 hover:shadow-none transition">
+                                <i class="fa-solid fa-plus mr-2"></i> Gabung Kelas Baru
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tab navigation for Siswa dashboard -->
+                    <div class="flex p-1 bg-slate-100 rounded-xl max-w-sm">
+                        <button id="tab-student-classes" onclick="switchStudentTab('classes')" class="w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition">Kelas Saya</button>
+                        <button id="tab-student-history" onclick="switchStudentTab('history')" class="w-1/2 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition">Riwayat Absen</button>
+                    </div>
+
+                    <!-- Enrolled Classes Panel -->
+                    <div id="student-classes-panel" class="space-y-4">
+                        <div id="siswa-classes-grid" class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            <!-- Dynamically Loaded -->
+                        </div>
+                    </div>
+
+                    <!-- History Attendance Panel -->
+                    <div id="student-history-panel" class="hidden bg-white p-6 rounded-2xl border border-slate-100 shadow-sm overflow-x-auto custom-scrollbar">
+                        <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center"><i class="fa-solid fa-clock-rotate-left text-indigo-500 mr-2"></i> Riwayat Kehadiran Pribadi</h2>
+                        <table class="min-w-full divide-y divide-slate-100">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Kelas</th>
+                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Nama Sesi</th>
+                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Keterangan</th>
+                                    <th class="px-6 py-3.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Waktu Absen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="siswa-history-table-body" class="bg-white divide-y divide-slate-100">
+                                <!-- Dynamically Loaded -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ================= CLASS DETAILS PANEL (DYNAMIC) ================= -->
+                <div id="class-detail-view" class="hidden space-y-8">
+                    <!-- Back Button & Title Card -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div class="flex items-center space-x-4">
+                            <button onclick="backToDashboard()" class="p-2.5 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                                <i class="fa-solid fa-arrow-left"></i>
+                            </button>
+                            <div>
+                                <h1 class="text-2xl font-bold tracking-tight text-slate-900" id="detail-class-name">Nama Kelas</h1>
+                                <p class="text-sm text-slate-500" id="detail-class-code-subtitle">Kode Kelas: ...</p>
+                            </div>
+                        </div>
+                        <div id="class-detail-actions" class="flex flex-wrap gap-2">
+                            <!-- Action buttons depend on role -->
+                        </div>
+                    </div>
+
+                    <!-- Grid Layout for Class Area -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Left Column: Sessions List (2/3 width) -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                <h2 class="text-lg font-bold text-slate-800 mb-4 flex items-center justify-between">
+                                    <span><i class="fa-solid fa-list-check text-indigo-500 mr-2"></i> Sesi Presensi</span>
+                                    <span id="active-indicator" class="hidden bg-emerald-100 text-emerald-800 text-xs px-2.5 py-1 rounded-full font-semibold animate-pulse">Sesi Aktif</span>
+                                </h2>
+                                <div id="sessions-container" class="space-y-4">
+                                    <!-- Dynamic List -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Contextual Card (Class Stats / Report) -->
+                        <div class="space-y-6">
+                            <!-- Report / Student List Area -->
+                            <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+                                <h2 class="text-lg font-bold text-slate-800 mb-4" id="right-panel-title">Rekapitulasi Kelas</h2>
+                                <div id="right-panel-content" class="space-y-4">
+                                    <!-- Dynamic content based on user role -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- ================= MODALS ================= -->
+    
+    <!-- Create Class Modal -->
+    <div id="create-class-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-100 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Buat Kelas Baru</h3>
+                <button onclick="closeModal('create-class-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreateClassSubmit(event)" class="space-y-4">
+                <div>
+                    <label for="new-class-name" class="block text-sm font-semibold text-slate-700">Nama Kelas / Mata Pelajaran</label>
+                    <input id="new-class-name" required type="text" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="Contoh: Matematika - X IPA 1">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('create-class-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition">Buat Kelas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Join Class Modal -->
+    <div id="join-class-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-100 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Gabung Kelas Baru</h3>
+                <button onclick="closeModal('join-class-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleJoinClassSubmit(event)" class="space-y-4">
+                <div>
+                    <label for="join-class-code" class="block text-sm font-semibold text-slate-700">Kode Kelas (6 karakter)</label>
+                    <input id="join-class-code" required type="text" maxlength="6" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50 uppercase text-center font-mono font-bold tracking-widest text-lg" placeholder="ABCXYZ">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('join-class-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-emerald-600 text-white rounded-xl shadow-md hover:bg-emerald-700 transition">Gabung Kelas</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Session Modal -->
+    <div id="create-session-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-100 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Buka Sesi Absensi Baru</h3>
+                <button onclick="closeModal('create-session-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleCreateSessionSubmit(event)" class="space-y-4">
+                <div>
+                    <label for="new-session-name" class="block text-sm font-semibold text-slate-700">Judul Sesi / Pertemuan</label>
+                    <input id="new-session-name" required type="text" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="Contoh: Pertemuan 1 - Pengenalan Aljabar">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('create-session-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition">Buka Absensi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Submit Attendance Modal -->
+    <div id="submit-attendance-modal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 flex items-center justify-center hidden">
+        <div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl border border-slate-100 m-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-slate-900">Formulir Presensi Siswa</h3>
+                <button onclick="closeModal('submit-attendance-modal')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleSubmitAttendanceSubmit(event)" class="space-y-4">
+                <input type="hidden" id="submit-att-session-id">
+                
+                <div class="p-3 bg-indigo-50/50 border border-indigo-100 rounded-xl">
+                    <p class="text-xs text-indigo-700 font-medium uppercase tracking-wider">Mata Pelajaran</p>
+                    <h4 id="submit-att-class-name" class="text-base font-bold text-slate-800">Nama Kelas</h4>
+                    <p id="submit-att-session-title" class="text-sm text-slate-600 mt-1">Sesi: ...</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">Status Kehadiran</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-emerald-50/30 hover:border-emerald-200 transition">
+                            <input type="radio" name="att-status" value="Hadir" checked class="text-emerald-600 focus:ring-emerald-500 mb-2">
+                            <span class="text-xs font-semibold text-slate-700">Hadir</span>
+                        </label>
+                        <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-amber-50/30 hover:border-amber-200 transition">
+                            <input type="radio" name="att-status" value="Izin" class="text-amber-600 focus:ring-amber-500 mb-2">
+                            <span class="text-xs font-semibold text-slate-700">Izin</span>
+                        </label>
+                        <label class="border border-slate-200 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-50/30 hover:border-rose-200 transition">
+                            <input type="radio" name="att-status" value="Sakit" class="text-rose-600 focus:ring-rose-500 mb-2">
+                            <span class="text-xs font-semibold text-slate-700">Sakit</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="att-notes" class="block text-sm font-semibold text-slate-700">Keterangan / Alasan (Opsional)</label>
+                    <textarea id="att-notes" rows="3" class="mt-1 block w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-slate-50/50" placeholder="Tulis catatan jika Izin / Sakit atau beri '-' jika hadir"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeModal('submit-attendance-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-xl transition">Batal</button>
+                    <button type="submit" class="px-5 py-2.5 text-sm font-semibold bg-indigo-600 text-white rounded-xl shadow-md hover:bg-indigo-700 transition">Kirim Presensi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // State Management
+        let currentUser = null;
+        let authMode = 'login'; // 'login' atau 'register'
+        let currentClass = null; // Menyimpan data kelas yang sedang aktif dibuka detailnya
+        let classReportData = null; // Menyimpan data absensi kelas (untuk Guru)
+
+        /**
+         * Wrapper untuk memanggil fungsi Google Apps Script dengan Promise agar sintaks async-await bekerja mulus.
+         */
+        function callGAS(funcName, ...args) {
+            return new Promise((resolve, reject) => {
+                if (typeof google !== 'undefined' && google.script && google.script.run) {
+                    google.script.run
+                        .withSuccessHandler(resolve)
+                        .withFailureHandler(err => {
+                            console.error(`Error pada ${funcName}:`, err);
+                            reject(err);
+                        })
+                        [funcName](...args);
+                } else {
+                    // === PERBAIKAN: SIMULASI LOKAL UNTUK TESTING ===
+                    console.warn(`[Lokal MOCK] Mensimulasikan fungsi: ${funcName}`, args);
+                    
+                    // Simulasi delay jaringan (0.5 detik)
+                    setTimeout(() => {
+                        if (funcName === "loginUser" || funcName === "handleAuthSubmit") {
+                            // Simulasi respon sukses data user fiktif untuk bypass login lokal
+                            resolve({
+                                success: true,
+                                name: "User Testing",
+                                username: args[0], // mengambil username yang kamu ketik
+                                role: "Guru"       // atau "Siswa"
+                            });
+                        } else {
+                            // Untuk fungsi lain, kembalikan array kosong / status sukses umum
+                            resolve({ success: true, data: [] });
+                        }
+                    }, 500);
+                }
+            });
+        }
+
+        /**
+         * Memperlihatkan pesan toast informatif (sukses, info, bahaya).
+         */
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const iconBg = document.getElementById('toast-icon-bg');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+
+            msg.innerText = message;
+            
+            // Atur gaya warna berdasarkan jenis toast
+            if (type === 'success') {
+                iconBg.className = "inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-100 text-emerald-500";
+                icon.className = "fa-solid fa-circle-check";
+            } else if (type === 'error') {
+                iconBg.className = "inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-red-100 text-red-500";
+                icon.className = "fa-solid fa-circle-xmark";
+            } else {
+                iconBg.className = "inline-flex items-center justify-center flex-shrink-0 w-8 h-8 rounded-lg bg-blue-100 text-blue-500";
+                icon.className = "fa-solid fa-circle-info";
+            }
+
+            // Tampilkan dengan transisi halus
+            toast.classList.remove('translate-y-[-150%]', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-150%]', 'opacity-0');
+                toast.classList.remove('translate-y-0', 'opacity-100');
+            }, 3500);
+        }
+
+        /**
+         * Kontrol Loader Utama.
+         */
+        function toggleLoader(show, text = 'Memproses permintaan...') {
+            const loader = document.getElementById('global-loader');
+            const loaderText = document.getElementById('loader-text');
+            loaderText.innerText = text;
+            if (show) {
+                loader.classList.remove('hidden');
+            } else {
+                loader.classList.add('hidden');
+            }
+        }
+
+        /**
+         * Mengubah Mode Formulir Registrasi & Login.
+         */
+        function toggleAuthMode(mode) {
+            authMode = mode;
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            const regFields = document.getElementById('reg-fields');
+            const subtitle = document.getElementById('auth-subtitle');
+            const btn = document.getElementById('auth-btn');
+
+            if (mode === 'register') {
+                tabRegister.className = "w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition";
+                tabLogin.className = "w-1/2 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition";
+                regFields.classList.remove('hidden');
+                document.getElementById('reg-name').setAttribute('required', 'true');
+                subtitle.innerText = 'Daftarkan diri Anda sebagai Guru atau Siswa';
+                btn.innerText = 'Daftar Sekarang';
+            } else {
+                tabLogin.className = "w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition";
+                tabRegister.className = "w-1/2 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition";
+                regFields.classList.add('hidden');
+                document.getElementById('reg-name').removeAttribute('required');
+                subtitle.innerText = 'Silakan login untuk mengakses kelas Anda';
+                btn.innerText = 'Masuk Ke Akun';
+            }
+        }
+
+        /**
+         * Mengontrol Buka/Tutup Modal Dialog.
+         */
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+
+        /**
+         * Penanganan Submit Registrasi / Login.
+         */
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            const username = document.getElementById('auth-username').value;
+            const password = document.getElementById('auth-password').value;
+
+            if (authMode === 'register') {
+                const name = document.getElementById('reg-name').value;
+                const role = document.querySelector('input[name="reg-role"]:checked').value;
+                
+                toggleLoader(true, 'Mendaftarkan akun baru...');
+                try {
+                    const result = await callGAS('registerUser', username, password, name, role);
+                    toggleLoader(false);
+                    if (result.success) {
+                        showToast(result.message, 'success');
+                        toggleAuthMode('login'); // Kembali ke form login setelah daftar
+                        // Reset input pendaftaran
+                        document.getElementById('reg-name').value = '';
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (err) {
+                    toggleLoader(false);
+                    showToast('Gagal terhubung dengan server!', 'error');
+                }
+            } else {
+                // Proses Login
+                toggleLoader(true, 'Memverifikasi identitas...');
+                try {
+                    const result = await callGAS('loginUser', username, password);
+                    toggleLoader(false);
+                    if (result.success) {
+                        currentUser = result.user;
+                        showToast('Selamat datang kembali, ' + currentUser.name + '!', 'success');
+                        initializeDashboard();
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                } catch (err) {
+                    toggleLoader(false);
+                    showToast('Gagal terhubung dengan server!', 'error');
+                }
+            }
+        }
+
+        /**
+         * Penanganan Logout.
+         */
+        function handleLogout() {
+            currentUser = null;
+            currentClass = null;
+            classReportData = null;
+            document.getElementById('auth-form').reset();
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+        }
+
+
+        /**
+         * Menginisialisasi UI Aplikasi Utama Setelah Login Berhasil.
+         */
+        function initializeDashboard() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            
+            // Set profil user di navbar
+            document.getElementById('user-display-name').innerText = currentUser.name;
+            document.getElementById('user-display-role').innerText = currentUser.role;
+            document.getElementById('user-avatar').innerText = currentUser.name.charAt(0).toUpperCase();
+
+            // Sembunyikan semua sub-view
+            document.getElementById('guru-view').classList.add('hidden');
+            document.getElementById('siswa-view').classList.add('hidden');
+            document.getElementById('class-detail-view').classList.add('hidden');
+
+            if (currentUser.role === 'Guru') {
+                document.getElementById('guru-view').classList.remove('hidden');
+                loadGuruClasses();
+            } else {
+                document.getElementById('siswa-view').classList.remove('hidden');
+                switchStudentTab('classes');
+            }
+        }
+
+        /**
+         * Memuat Daftar Kelas Guru dari Google Sheets.
+         */
+        async function loadGuruClasses() {
+            toggleLoader(true, 'Mengunduh daftar kelas...');
+            try {
+                const classes = await callGAS('getTeacherClasses', currentUser.id);
+                const grid = document.getElementById('guru-classes-grid');
+                grid.innerHTML = '';
+
+                if (classes.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full bg-white p-8 rounded-2xl border border-dashed border-slate-200 text-center text-slate-500">
+                            <i class="fa-solid fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                            <p class="font-medium text-slate-600">Belum ada kelas.</p>
+                            <p class="text-xs mt-1 text-slate-400">Silakan klik tombol "Buat Kelas Baru" untuk memulai.</p>
+                        </div>
+                    `;
+                } else {
+                    classes.forEach(c => {
+                        const card = document.createElement('div');
+                        card.className = "bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-indigo-100 transition cursor-pointer flex flex-col justify-between";
+                        card.onclick = () => openClassDetail(c);
+                        card.innerHTML = `
+                            <div>
+                                <div class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 mb-4">
+                                    <i class="fa-solid fa-chalkboard text-lg"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-slate-900">${c.ClassName}</h3>
+                                <div class="mt-2 inline-flex items-center text-xs font-mono font-semibold tracking-wider bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
+                                    KODE: ${c.ClassCode}
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-500">
+                                <span><i class="fa-solid fa-chalkboard-user mr-1"></i> ${c.TeacherName}</span>
+                                <span class="text-indigo-600 font-semibold">Kelola <i class="fa-solid fa-chevron-right ml-1"></i></span>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
+            } catch (err) {
+                showToast('Gagal memuat daftar kelas.', 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        /**
+         * Mengontrol Perpindahan Tab di Dashboard Siswa.
+         */
+        function switchStudentTab(tab) {
+            const btnClasses = document.getElementById('tab-student-classes');
+            const btnHistory = document.getElementById('tab-student-history');
+            const panelClasses = document.getElementById('student-classes-panel');
+            const panelHistory = document.getElementById('student-history-panel');
+
+            if (tab === 'classes') {
+                btnClasses.className = "w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition";
+                btnHistory.className = "w-1/2 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition";
+                panelClasses.classList.remove('hidden');
+                panelHistory.classList.add('hidden');
+                loadStudentClasses();
+            } else {
+                btnHistory.className = "w-1/2 py-2 text-sm font-semibold rounded-lg bg-white text-indigo-600 shadow-sm transition";
+                btnClasses.className = "w-1/2 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition";
+                panelHistory.classList.remove('hidden');
+                panelClasses.classList.add('hidden');
+                loadStudentAttendanceHistory();
+            }
+        }
+
+        /**
+         * Memuat Daftar Kelas yang diikuti Siswa dari Google Sheets.
+         */
+        async function loadStudentClasses() {
+            toggleLoader(true, 'Mengunduh daftar kelas...');
+            try {
+                const classes = await callGAS('getStudentClasses', currentUser.id);
+                const grid = document.getElementById('siswa-classes-grid');
+                grid.innerHTML = '';
+
+                if (classes.length === 0) {
+                    grid.innerHTML = `
+                        <div class="col-span-full bg-white p-8 rounded-2xl border border-dashed border-slate-200 text-center text-slate-500">
+                            <i class="fa-solid fa-folder-open text-4xl text-slate-300 mb-3"></i>
+                            <p class="font-medium text-slate-600">Belum tergabung di kelas mana pun.</p>
+                            <p class="text-xs mt-1 text-slate-400">Mintalah kode kelas dari Guru Anda dan klik "Gabung Kelas Baru".</p>
+                        </div>
+                    `;
+                } else {
+                    classes.forEach(c => {
+                        const card = document.createElement('div');
+                        card.className = "bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md hover:border-emerald-100 transition cursor-pointer flex flex-col justify-between";
+                        card.onclick = () => openClassDetail(c);
+                        card.innerHTML = `
+                            <div>
+                                <div class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 mb-4">
+                                    <i class="fa-solid fa-school text-lg"></i>
+                                </div>
+                                <h3 class="text-base font-bold text-slate-900">${c.ClassName}</h3>
+                                <div class="mt-2 inline-flex items-center text-xs font-mono font-medium tracking-wider bg-slate-50 text-slate-600 px-2.5 py-1 rounded-lg">
+                                    KODE: ${c.ClassCode}
+                                </div>
+                            </div>
+                            <div class="mt-4 pt-4 border-t border-slate-50 flex justify-between items-center text-xs text-slate-500">
+                                <span><i class="fa-solid fa-chalkboard-user mr-1"></i> ${c.TeacherName}</span>
+                                <span class="text-emerald-600 font-semibold">Buka Kelas <i class="fa-solid fa-chevron-right ml-1"></i></span>
+                            </div>
+                        `;
+                        grid.appendChild(card);
+                    });
+                }
+            } catch (err) {
+                showToast('Gagal memuat kelas Anda.', 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+        /**
+         * Memuat Riwayat Absen Siswa secara global.
+         */
+        async function loadStudentAttendanceHistory() {
+            toggleLoader(true, 'Menghimpun riwayat absen...');
+            try {
+                const list = await callGAS('getStudentHistory', currentUser.id);
+                const tbody = document.getElementById('siswa-history-table-body');
+                tbody.innerHTML = '';
+
+                if (list.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-6 py-10 text-center text-slate-500 text-sm">
+                                <i class="fa-solid fa-clipboard-question text-3xl text-slate-300 mb-2"></i>
+                                <p class="font-medium text-slate-400">Belum ada riwayat absensi.</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    list.forEach(item => {
+                        let badgeClass = 'bg-slate-100 text-slate-800';
+                        if (item.status === 'Hadir') badgeClass = 'bg-emerald-100 text-emerald-800';
+                        if (item.status === 'Izin') badgeClass = 'bg-amber-100 text-amber-800';
+                        if (item.status === 'Sakit') badgeClass = 'bg-rose-100 text-rose-800';
+
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50/50 transition";
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">${item.className}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.sessionName}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2.5 py-1 text-xs font-semibold rounded-full ${badgeClass}">${item.status}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 truncate max-w-xs">${item.notes}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-xs text-slate-400">${item.timestamp}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (err) {
+                showToast('Gagal memuat riwayat.', 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+
+        /**
+         * Proses pembuatan kelas baru (Guru).
+         */
+        async function handleCreateClassSubmit(e) {
+            e.preventDefault();
+            const className = document.getElementById('new-class-name').value;
+            closeModal('create-class-modal');
+
+            toggleLoader(true, 'Memproses pembuatan kelas...');
+            try {
+                const result = await callGAS('createClass', className, currentUser.id, currentUser.name);
+                toggleLoader(false);
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    document.getElementById('new-class-name').value = '';
+                    loadGuruClasses(); // muat ulang
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                toggleLoader(false);
+                showToast('Koneksi terputus!', 'error');
+            }
+        }
+
+        /**
+         * Proses penggabungan ke kelas (Siswa).
+         */
+        async function handleJoinClassSubmit(e) {
+            e.preventDefault();
+            const classCode = document.getElementById('join-class-code').value.toUpperCase();
+            closeModal('join-class-modal');
+
+            toggleLoader(true, 'Menghubungkan ke kelas...');
+            try {
+                const result = await callGAS('joinClass', classCode, currentUser.id, currentUser.name);
+                toggleLoader(false);
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    document.getElementById('join-class-code').value = '';
+                    loadStudentClasses(); // muat ulang
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                toggleLoader(false);
+                showToast('Koneksi terputus!', 'error');
+            }
+        }
+
+
+        /**
+         * Membuka Halaman Detail Kelas yang dipilih.
+         */
+        async function openClassDetail(cls) {
+            currentClass = cls;
+            
+            // Sembunyikan dashboard utama
+            document.getElementById('guru-view').classList.add('hidden');
+            document.getElementById('siswa-view').classList.add('hidden');
+            
+            // Tampilkan detail view
+            const detailView = document.getElementById('class-detail-view');
+            detailView.classList.remove('hidden');
+
+            document.getElementById('detail-class-name').innerText = currentClass.ClassName;
+            document.getElementById('detail-class-code-subtitle').innerText = `Kode Kelas: ${currentClass.ClassCode}`;
+
+            // Sesuaikan tombol aksi di header detail
+            const actionsDiv = document.getElementById('class-detail-actions');
+            actionsDiv.innerHTML = '';
+
+            if (currentUser.role === 'Guru') {
+                actionsDiv.innerHTML = `
+                    <button onclick="openModal('create-session-modal')" class="px-4 py-2 text-sm font-semibold bg-indigo-600 text-white rounded-xl shadow hover:bg-indigo-700 transition">
+                        <i class="fa-solid fa-clock-rotate-left mr-1.5"></i> Buka Sesi Baru
+                    </button>
+                `;
+                document.getElementById('right-panel-title').innerHTML = `<i class="fa-solid fa-users text-indigo-500 mr-2"></i> Kehadiran Siswa`;
+            } else {
+                document.getElementById('right-panel-title').innerHTML = `<i class="fa-solid fa-chart-pie text-emerald-500 mr-2"></i> Kehadiran Saya`;
+            }
+
+            // Muat sesi dan laporan
+            loadClassSessions();
+        }
+
+        /**
+         * Kembali ke Tampilan Utama Dashboard.
+         */
+        function backToDashboard() {
+            currentClass = null;
+            classReportData = null;
+            initializeDashboard();
+        }
+
+        /**
+         * Mendapatkan daftar sesi di kelas saat ini.
+         */
+        async function loadClassSessions() {
+            toggleLoader(true, 'Menghimpun sesi...');
+            try {
+                const sessions = await callGAS('getClassSessions', currentClass.ClassCode);
+                const container = document.getElementById('sessions-container');
+                container.innerHTML = '';
+                
+                let hasActive = false;
+
+                if (sessions.length === 0) {
+                    container.innerHTML = `
+                        <div class="p-6 bg-slate-50 rounded-xl border border-slate-100 text-center text-slate-400 text-sm">
+                            <p class="font-medium text-slate-500">Belum ada sesi absensi.</p>
+                            <p class="text-xs mt-0.5">${currentUser.role === 'Guru' ? 'Silakan buka sesi absensi baru' : 'Menunggu guru membuka sesi absensi'}</p>
+                        </div>
+                    `;
+                } else {
+                    // Sorting agar sesi terbaru berada di atas
+                    sessions.reverse();
+
+                    sessions.forEach(s => {
+                        const div = document.createElement('div');
+                        const isActive = s.Status === 'Active';
+                        if (isActive) hasActive = true;
+
+                        div.className = `p-4 rounded-xl border transition flex flex-col md:flex-row md:items-center md:justify-between gap-3 ${
+                            isActive 
+                            ? 'bg-indigo-50/40 border-indigo-200 shadow-sm shadow-indigo-50' 
+                            : 'bg-white border-slate-100'
+                        }`;
+
+                        // Konten Sesi
+                        let actionButton = '';
+                        if (currentUser.role === 'Guru') {
+                            if (isActive) {
+                                actionButton = `
+                                    <button onclick="handleCloseSession('${s.SessionId}')" class="px-3.5 py-1.5 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition shadow-sm">
+                                        Tutup Sesi
+                                    </button>
+                                `;
+                            } else {
+                                actionButton = `<span class="text-xs text-slate-400 font-medium">Sesi Ditutup</span>`;
+                            }
+                        } else {
+                            // Sebagai Siswa
+                            if (isActive) {
+                                actionButton = `
+                                    <button onclick="openAttendanceForm('${s.SessionId}', '${s.SessionName}')" class="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition shadow-sm">
+                                        Isi Presensi
+                                    </button>
+                                `;
+                            } else {
+                                actionButton = `<span class="text-xs text-slate-400 font-medium">Ditutup</span>`;
+                            }
+                        }
+
+                        div.innerHTML = `
+                            <div>
+                                <div class="flex items-center space-x-2">
+                                    <h4 class="text-sm font-bold text-slate-900">${s.SessionName}</h4>
+                                    ${isActive 
+                                        ? '<span class="px-2 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded-full font-bold animate-pulse">AKTIF</span>' 
+                                        : '<span class="px-2 py-0.5 text-[10px] bg-slate-100 text-slate-500 rounded-full font-semibold">TUTUP</span>'
+                                    }
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1"><i class="fa-regular fa-calendar-days mr-1"></i> Dibuka: ${s.Date}</p>
+                            </div>
+                            <div class="flex items-center">
+                                ${actionButton}
+                            </div>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+
+                // Update Active Indicator di Atas
+                const indicator = document.getElementById('active-indicator');
+                if (hasActive) {
+                    indicator.classList.remove('hidden');
+                } else {
+                    indicator.classList.add('hidden');
+                }
+
+                // Terakhir, load rekap untuk kolom sebelah kanan
+                if (currentUser.role === 'Guru') {
+                    loadClassAttendanceReport();
+                } else {
+                    renderStudentClassAttendanceProgress(sessions);
+                }
+
+            } catch (err) {
+                showToast('Gagal memuat daftar sesi.', 'error');
+            } finally {
+                toggleLoader(false);
+            }
+        }
+
+
+        /**
+         * Proses pembukaan Sesi Absensi baru (Guru).
+         */
+        async function handleCreateSessionSubmit(e) {
+            e.preventDefault();
+            const sessionName = document.getElementById('new-session-name').value;
+            closeModal('create-session-modal');
+
+            toggleLoader(true, 'Membuka sesi absensi...');
+            try {
+                const result = await callGAS('createSession', currentClass.ClassCode, sessionName);
+                toggleLoader(false);
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    document.getElementById('new-session-name').value = '';
+                    loadClassSessions();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                toggleLoader(false);
+                showToast('Koneksi terputus!', 'error');
+            }
+        }
+
+        /**
+         * Proses penutupan sesi absensi secara manual (Guru).
+         */
+        async function handleCloseSession(sessionId) {
+            toggleLoader(true, 'Menutup sesi...');
+            try {
+                const result = await callGAS('closeSession', sessionId);
+                toggleLoader(false);
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    loadClassSessions();
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                toggleLoader(false);
+                showToast('Gagal menutup sesi.', 'error');
+            }
+        }
+
+
+        /**
+         * Mengisi & Menampilkan data ringkasan keikutsertaan absensi siswa di kelas tertentu.
+         */
+        async function renderStudentClassAttendanceProgress(sessions) {
+            const content = document.getElementById('right-panel-content');
+            content.innerHTML = '<div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Membaca data...</div>';
+            
+            try {
+                const myHistory = await callGAS('getStudentHistory', currentUser.id);
+                // Filter riwayat khusus kelas ini
+                const classHistory = myHistory.filter(h => h.className === currentClass.ClassName);
+                
+                const totalSessions = sessions.length;
+                const attended = classHistory.filter(h => h.status === 'Hadir').length;
+                const permission = classHistory.filter(h => h.status === 'Izin').length;
+                const sick = classHistory.filter(h => h.status === 'Sakit').length;
+                const alpa = totalSessions - (attended + permission + sick);
+
+                let attendancePercentage = totalSessions > 0 ? Math.round((attended / totalSessions) * 100) : 0;
+
+                content.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="text-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <div class="text-3xl font-extrabold text-indigo-600">${attendancePercentage}%</div>
+                            <div class="text-xs text-slate-400 mt-1 font-medium">Persentase Kehadiran</div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <div class="bg-emerald-50 text-emerald-800 p-2.5 rounded-xl border border-emerald-100 flex justify-between items-center">
+                                <span>Hadir:</span>
+                                <span class="font-bold">${attended}</span>
+                            </div>
+                            <div class="bg-amber-50 text-amber-800 p-2.5 rounded-xl border border-amber-100 flex justify-between items-center">
+                                <span>Izin:</span>
+                                <span class="font-bold">${permission}</span>
+                            </div>
+                            <div class="bg-rose-50 text-rose-800 p-2.5 rounded-xl border border-rose-100 flex justify-between items-center">
+                                <span>Sakit:</span>
+                                <span class="font-bold">${sick}</span>
+                            </div>
+                            <div class="bg-slate-100 text-slate-700 p-2.5 rounded-xl border border-slate-200 flex justify-between items-center">
+                                <span>Belum Absen:</span>
+                                <span class="font-bold">${alpa < 0 ? 0 : alpa}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                content.innerHTML = `<div class="text-xs text-red-500 text-center py-2">Gagal mengumpulkan statistik.</div>`;
+            }
+        }
+
+
+        /**
+         * Menampilkan Laporan Absensi Seluruh Siswa di Kelas Ini (Guru).
+         */
+        async function loadClassAttendanceReport() {
+            const content = document.getElementById('right-panel-content');
+            content.innerHTML = '<div class="text-center text-xs text-slate-400 py-4"><i class="fa-solid fa-spinner animate-spin mr-1"></i> Membaca rekapitulasi...</div>';
+
+            try {
+                const report = await callGAS('getAttendanceReport', currentClass.ClassCode);
+                classReportData = report;
+
+                if (report.students.length === 0) {
+                    content.innerHTML = `
+                        <div class="text-center text-xs text-slate-400 py-6">
+                            <i class="fa-solid fa-users-slash text-2xl text-slate-300 mb-2"></i>
+                            <p>Belum ada siswa yang bergabung di kelas ini.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Susun tabel rekapitulasi ringkas
+                let tableHtml = `
+                    <div class="overflow-x-auto custom-scrollbar border border-slate-100 rounded-xl">
+                        <table class="min-w-full divide-y divide-slate-100 text-xs">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-semibold text-slate-500 uppercase">Nama Siswa</th>
+                                    <th class="px-3 py-2 text-center font-semibold text-slate-500 uppercase">Status Terakhir</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-50 bg-white">
+                `;
+
+                report.students.forEach(std => {
+                    // Cari status absen di sesi paling akhir jika ada
+                    let lastAtt = '-';
+                    let badgeColor = 'text-slate-400 bg-slate-50';
+                    
+                    if (report.sessions.length > 0) {
+                        const lastSession = report.sessions[report.sessions.length - 1];
+                        const attRecord = report.attendances.find(a => a.StudentId === std.StudentId && a.SessionId === lastSession.SessionId);
+                        
+                        if (attRecord) {
+                            lastAtt = attRecord.Status;
+                            if (lastAtt === 'Hadir') badgeColor = 'text-emerald-700 bg-emerald-50 border border-emerald-100';
+                            if (lastAtt === 'Izin') badgeColor = 'text-amber-700 bg-amber-50 border border-amber-100';
+                            if (lastAtt === 'Sakit') badgeColor = 'text-rose-700 bg-rose-50 border border-rose-100';
+                        } else {
+                            lastAtt = 'Alpa';
+                            badgeColor = 'text-red-700 bg-red-50 border border-red-100';
+                        }
+                    }
+
+                    tableHtml += `
+                        <tr class="hover:bg-slate-50/50">
+                            <td class="px-3 py-2.5 font-medium text-slate-800">${std.StudentName}</td>
+                            <td class="px-3 py-2.5 text-center">
+                                <span class="px-2 py-0.5 rounded-full font-semibold text-[10px] ${badgeColor}">
+                                    ${lastAtt}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                // Tambah Ringkasan Sesi
+                const activeSessionCount = report.sessions.filter(s => s.Status === 'Active').length;
+                tableHtml += `
+                    <div class="mt-4 p-3 bg-slate-50 rounded-xl text-xs space-y-1">
+                        <div class="flex justify-between text-slate-600">
+                            <span>Siswa Terdaftar:</span>
+                            <span class="font-bold text-slate-800">${report.students.length} Orang</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Total Sesi:</span>
+                            <span class="font-bold text-slate-800">${report.sessions.length} Sesi</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Sesi Aktif Saat Ini:</span>
+                            <span class="font-bold text-indigo-600">${activeSessionCount}</span>
+                        </div>
+                    </div>
+                `;
+
+                content.innerHTML = tableHtml;
+
+            } catch (err) {
+                content.innerHTML = `<div class="text-xs text-red-500 text-center py-2">Gagal memuat rekapitulasi.</div>`;
+            }
+        }
+
+
+        /**
+         * Membuka Formulir Presensi Siswa.
+         */
+        function openAttendanceForm(sessionId, sessionTitle) {
+            document.getElementById('submit-att-session-id').value = sessionId;
+            document.getElementById('submit-att-class-name').innerText = currentClass.ClassName;
+            document.getElementById('submit-att-session-title').innerText = `Sesi: ${sessionTitle}`;
+            document.getElementById('att-notes').value = '';
+            
+            // Set radio ke 'Hadir' secara default
+            const radios = document.getElementsByName('att-status');
+            for (let i = 0; i < radios.length; i++) {
+                if (radios[i].value === 'Hadir') {
+                    radios[i].checked = true;
+                }
+            }
+
+            openModal('submit-attendance-modal');
+        }
+
+        /**
+         * Proses pengiriman absensi (Siswa).
+         */
+        async function handleSubmitAttendanceSubmit(e) {
+            e.preventDefault();
+            const sessionId = document.getElementById('submit-att-session-id').value;
+            const status = document.querySelector('input[name="att-status"]:checked').value;
+            const notes = document.getElementById('att-notes').value;
+            closeModal('submit-attendance-modal');
+
+            toggleLoader(true, 'Mengirimkan kehadiran Anda...');
+            try {
+                const result = await callGAS('submitAttendance', sessionId, currentClass.ClassCode, currentUser.id, currentUser.name, status, notes);
+                toggleLoader(false);
+                if (result.success) {
+                    showToast(result.message, 'success');
+                    loadClassSessions(); // Muat ulang sesi & progres
+                } else {
+                    showToast(result.message, 'error');
+                }
+            } catch (err) {
+                toggleLoader(false);
+                showToast('Koneksi terputus!', 'error');
+            }
+        }
+    </script>
+</body>
+</html>
